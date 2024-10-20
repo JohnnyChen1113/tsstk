@@ -3,7 +3,7 @@ import pandas as pd
 import click
 from sortedcontainers import SortedList
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 @click.command()
 @click.option('-c', '--clusters', 'clusters_file', required=True, help='Input TSV file containing cluster information')
@@ -22,9 +22,10 @@ def assign_clusters_to_genes(clusters_file, genes_file, output_file, version):
     # Sort genes by chromosome and start position for efficient lookup
     genes_df = genes_df.sort_values(by=['chromosome', 'gene_start']).reset_index(drop=True)
 
-    # Add new columns to the clusters DataFrame for gene and nearby gene
+    # Add new columns to the clusters DataFrame for gene, nearby gene, and distance
     clusters_df['gene'] = 'NA'
     clusters_df['nearby'] = 'NA'
+    clusters_df['distance'] = 'NA'
 
     # Using a dictionary to keep sorted lists of genes by chromosome and strand for efficient binary search
     gene_dict = {}
@@ -56,21 +57,31 @@ def assign_clusters_to_genes(clusters_file, genes_file, output_file, version):
             containing_gene = None
             nearest_gene = None
             min_distance = float('inf')
+            distance_direction = ''
 
             for gene in possible_genes:
                 if gene.gene_start <= cluster_start and gene.gene_end >= cluster_end:
                     containing_gene = gene
                     break
                 else:
-                    distance = min(abs(gene.gene_start - cluster_start), abs(gene.gene_end - cluster_end))
+                    distance_start = gene.gene_start - cluster_end
+                    distance_end = cluster_start - gene.gene_end
+                    if distance_start > 0:
+                        distance = distance_start
+                        direction = '+'
+                    else:
+                        distance = abs(distance_end)
+                        direction = '-'
                     if distance < min_distance:
                         min_distance = distance
+                        distance_direction = direction
                         nearest_gene = gene
 
             if containing_gene:
                 clusters_df.at[index, 'gene'] = containing_gene.gene_id
             elif nearest_gene:
                 clusters_df.at[index, 'nearby'] = nearest_gene.gene_id
+                clusters_df.at[index, 'distance'] = f"{distance_direction}{min_distance}"
 
     # Save the updated clusters DataFrame to the output file
     clusters_df.to_csv(output_file, sep='\t', index=False)
