@@ -70,21 +70,13 @@ func processPairedRecord(record1, record2 FastqRecord) (FastqRecord, FastqRecord
     trimmedSeq1 := record1.seq[lastPos+7:]
     trimmedQual1 := record1.qual[lastPos+7:]
 
-    // Trim R2 to match the length of trimmed R1
-    trimmedSeq2 := record2.seq[lastPos+7:]
-    trimmedQual2 := record2.qual[lastPos+7:]
-
+    // R2 remains unchanged
     return FastqRecord{
         head: record1.head,
         seq:  trimmedSeq1,
         plus: record1.plus,
         qual: trimmedQual1,
-    }, FastqRecord{
-        head: record2.head,
-        seq:  trimmedSeq2,
-        plus: record2.plus,
-        qual: trimmedQual2,
-    }, true
+    }, record2, true
 }
 
 // Batch processing version of pairedWorker
